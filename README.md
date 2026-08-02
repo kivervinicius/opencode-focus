@@ -24,8 +24,11 @@ extensão GNOME própria que expõe dois métodos D-Bus (`org.opencode.Focus`).
 ### 1. Plugins (server + TUI)
 
 ```bash
-opencode plugin install opencode-focus --global
+opencode plugin opencode-focus --global
 ```
+
+> A sintaxe oficial é `opencode plugin <módulo> [--global]`. O subcomando
+> `opencode plugin install` não existe nesta versão (imprime o help sem instalar).
 
 Isso ativa dois plugins:
 - **server** — notificações por `notify-send`;

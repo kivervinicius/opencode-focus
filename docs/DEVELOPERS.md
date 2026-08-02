@@ -166,11 +166,10 @@ Regras do contrato (v1):
   `tui` e vice-versa. `opencode-focus` respeita isso com arquivos separados.
 - O opencode resolve `exports["./server"]` para o runtime server e `exports["./tui"]`
   para o runtime TUI.
-- A default export deve ser um **objeto** (`{ id?, server }` ou `{ id?, tui }`) para o
-  formato v1 — validado por `readV1Plugin`.
-- Para o **server** existe também fallback **v0/legacy**: um default export que seja
-  **função** é aceito via `getLegacyPlugins`. É o caso atual de `src/server.ts`, que
-  exporta `(async ({ client }) => …) satisfies Plugin` — uma função.
+- A default export é um **objeto** v1: `{ id, server }` (em `src/server.ts`) e
+  `{ id, tui }` (em `src/tui.ts`), validados por `readV1Plugin`.
+- O runtime server tem também fallback **v0/legacy** (default export como função, aceito
+  via `getLegacyPlugins`), mas o pacote **não o usa** — as duas entradas são v1.
 - Para o **TUI**, o default export **deve** ser umobjeto `{ id?, tui }` (sem server).
 
 ### 5.2 Tipos de referência

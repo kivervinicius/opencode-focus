@@ -1,4 +1,4 @@
-import type { Plugin, PluginInput } from "@opencode-ai/plugin"
+import type { Plugin, PluginInput, PluginModule } from "@opencode-ai/plugin"
 
 declare const Bun: {
   spawnSync(command: string[], options?: { stdout?: "ignore" | "pipe"; stderr?: "ignore" }): {
@@ -111,7 +111,7 @@ function extensionStatus() {
   }
 }
 
-export default (async ({ client }) => {
+const server: Plugin = async ({ client }) => {
   captureWindowId()
   if (!extensionStatus()) {
     diag("extensão GNOME opencode-focus ausente — supressão por foco desativada. Instale com: npx opencode-focus setup")
@@ -161,4 +161,8 @@ export default (async ({ client }) => {
       }
     },
   }
-}) satisfies Plugin
+}
+export default {
+  id: "opencode-focus-server",
+  server,
+} satisfies PluginModule
