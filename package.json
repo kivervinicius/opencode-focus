@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "bin": {
-    "opencode-focus": "./bin/opencode-focus.mjs"
+    "opencode-focus": "bin/opencode-focus.mjs"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.0.85"
