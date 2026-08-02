@@ -1,6 +1,6 @@
 {
   "name": "opencode-focus",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenCode plugin: status-aware terminal titles, minimal desktop notifications and click-to-focus window for the opencode TUI.",
   "type": "module",
   "license": "MIT",
