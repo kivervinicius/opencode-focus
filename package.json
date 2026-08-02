@@ -1,0 +1,52 @@
+{
+  "name": "opencode-focus",
+  "version": "0.1.0",
+  "description": "OpenCode plugin: status-aware terminal titles, minimal desktop notifications and click-to-focus window for the opencode TUI.",
+  "type": "module",
+  "license": "MIT",
+  "author": "desenvolvedor",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "tui",
+    "terminal",
+    "title",
+    "notification",
+    "gnome",
+    "wayland"
+  ],
+  "engines": {
+    "opencode": ">=1.18.0",
+    "node": ">=20"
+  },
+  "exports": {
+    "./server": "./src/server.ts",
+    "./tui": "./src/tui.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/",
+    "gnome-extension/",
+    "bin/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "opencode-focus": "./bin/opencode-focus.mjs"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.0.85"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.18.11",
+    "@opencode-ai/sdk": "^1.18.11",
+    "@opentui/core": "^0.4.5",
+    "typescript": "^5.7.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run typecheck",
+    "release": "npm publish"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "uuid": "opencode-focus@localhost",
+  "name": "OpenCode Focus",
+  "description": "Expoe metodos D-Bus para ler a janela ativa e ativar janelas por id, permitindo que notificacoes do opencode foquem o terminal correto.",
+  "shell-version": ["45", "46", "47", "48", "49"],
+  "url": "https://github.com/kivervinicius/opencode-focus",
+  "version": 2
+}
