@@ -172,6 +172,27 @@ Regras do contrato (v1):
   via `getLegacyPlugins`), mas o pacote **não o usa** — as duas entradas são v1.
 - Para o **TUI**, o default export **deve** ser umobjeto `{ id?, tui }` (sem server).
 
+Atenção à **descoberta automática de plugins locais**: o opencode varre o diretório de config global com
+`Glob.scan("{plugin,plugins}/*.{ts,js}")` (`packages/opencode/src/config/plugin.ts`) — qualquer arquivo
+nessas pastas vira um plugin **server**, mesmo sem estar listado em `opencode.json`. Um resquício de
+instalação antiga ali (ex.: `notify-status.ts`) roda junto com o pacote e causa lixo no TUI
+(se fizer `console.error`) e notificações duplicadas. Sempre remova esses arquivos (backup) ao migrar.
+
+### 5.1.1 Lock de título entre instâncias (KV)
+
+Duas cópias do plugin TUI carregadas ao mesmo tempo (pacote + cópia local antiga) escreviam o título da
+janela em paralelo (spinner a cada 120ms) e davam duplo toggle em `terminal.title.toggle` — o resultado
+é lixo visual no fundo do TUI (sequência OSC `ESC]0;…` intercalada com o repaint). O `src/tui.ts` se
+protege com um lock via KV compartilhada do TUI:
+
+- Chave: `opencode_focus_title_owner` (valor `{ instance, ts }`); a chave `plugin_enabled` é reservada
+  pelo runtime (`KV_KEY` em `plugin/tui/runtime.ts`) — nunca use.
+- `acquireTitleLock()`: se existe um owner de outra instância com `ts` recente (< 5s), a instância
+  retorna cedo (sem toggle, sem título, sem notificações, sem listeners).
+- Heartbeat: a instância dona renova o `ts` a cada 2s (instâncias mortas/crash são substituídas após o
+  tempo de stale).
+- `lifecycle.onDispose`: se ainda é o owner, limpa a chave.
+
 ### 5.2 Tipos de referência
 
 Os tipos vêm de:

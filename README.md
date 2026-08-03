@@ -37,6 +37,25 @@ Isso ativa dois plugins:
 
 Reinicie o opencode para carregar.
 
+### Migração de plugins locais antigos
+
+Se o título da janela piscar com caracteres no fundo, ou as notificações chegarem duplicadas, provavelmente
+há **plugins locais antigos** (de instalações anteriores feitas por cópia) convivendo com o pacote:
+
+- **`~/.config/opencode/tui.json`** → remova entradas locais de título como `"./tui-status-title.ts"`
+  (o array deve conter apenas `"opencode-focus"`).
+- **`~/.config/opencode/plugin/` e `~/.config/opencode/plugins/`** → o opencode **carrega automaticamente**
+  qualquer `*.ts`/`*.js` dessas pastas como plugin server (`Glob.scan("{plugin,plugins}/*.{ts,js}")`).
+  Remova cópias antigas como `notify-status.ts`, mesmo que não estejam listadas no `opencode.json`.
+- **`~/.config/opencode/scripts/`** → cópias antigas de scripts auxiliares usadas pelos plugins acima.
+
+Não apague: apenas mova para um backup (ex.: `~/.config/opencode/backup-<data>/`).
+
+O pacote já se protege contra recorrência: o plugin TUI usa uma KV compartilhada
+(`opencode_focus_title_owner`) com heartbeat — só a primeira instância carregada escreve o título
+da janela; as demais se desligam. Mesmo que duas cópias estejam carregadas, não há duplo toggle
+nem escrita concorrente no título.
+
 ### 2. Extensão GNOME (opcional, mas recomendada)
 
 A extensão habilita a supressão por foco e o clique para focar. É uma extensão fora do pacote npm:

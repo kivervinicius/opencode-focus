@@ -25,10 +25,49 @@ function diag(...args: unknown[]) {
   } catch {}
 }
 
+const OWNER_KEY = "opencode_focus_title_owner"
+const HEARTBEAT_MS = 2000
+const STALE_MS = 5000
+
 export default {
   id: "opencode-status-title",
   tui: (async (api) => {
     const { renderer, event, state, kv, route, command, lifecycle } = api
+
+    const INSTANCE = `opencode-status-title-${Math.random().toString(36).slice(2, 10)}`
+
+    function acquireTitleLock(): boolean {
+      try {
+        const owner = kv.get(OWNER_KEY, undefined)
+        const now = Date.now()
+        if (owner && typeof owner === "object") {
+          const rec = owner as { instance?: string; ts?: number }
+          if (
+            typeof rec.instance === "string" &&
+            rec.instance !== INSTANCE &&
+            typeof rec.ts === "number" &&
+            now - rec.ts < STALE_MS
+          ) {
+            diag("título já controlado por outra instância:", rec.instance)
+            return false
+          }
+        }
+        kv.set(OWNER_KEY, { instance: INSTANCE, ts: now })
+        return true
+      } catch (err) {
+        diag("acquireTitleLock falhou:", String(err))
+        return true
+      }
+    }
+
+    if (!acquireTitleLock()) return
+
+    let heartbeat: ReturnType<typeof setInterval> | undefined
+    heartbeat = setInterval(() => {
+      try {
+        kv.set(OWNER_KEY, { instance: INSTANCE, ts: Date.now() })
+      } catch {}
+    }, HEARTBEAT_MS)
 
     if (kv.get("terminal_title_enabled", true)) {
       command?.trigger("terminal.title.toggle")
@@ -196,6 +235,13 @@ export default {
     lifecycle.onDispose(() => {
       stopSpinner()
       renderer.setTerminalTitle("")
+      if (heartbeat) clearInterval(heartbeat)
+      try {
+        const owner = kv.get(OWNER_KEY, undefined)
+        if (owner && typeof owner === "object" && (owner as { instance?: string }).instance === INSTANCE) {
+          kv.set(OWNER_KEY, undefined)
+        }
+      } catch {}
     })
 
     captureWindowId()
