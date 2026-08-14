@@ -32,19 +32,25 @@ const STALE_MS = 5000
 export default {
   id: "opencode-status-title",
   tui: (async (api) => {
-    const { renderer, event, state, kv, route, command, lifecycle } = api
+    const { renderer, event, state, kv, route, command, lifecycle, attention } = api
 
     const INSTANCE = `opencode-status-title-${Math.random().toString(36).slice(2, 10)}`
+    const PROCESS_ID =
+      typeof process !== "undefined" &&
+      typeof (process as unknown as { pid?: number }).pid === "number"
+        ? (process as unknown as { pid: number }).pid
+        : -1
 
     function acquireTitleLock(): boolean {
       try {
         const owner = kv.get(OWNER_KEY, undefined)
         const now = Date.now()
         if (owner && typeof owner === "object") {
-          const rec = owner as { instance?: string; ts?: number }
+          const rec = owner as { instance?: string; pid?: number; ts?: number }
           if (
             typeof rec.instance === "string" &&
             rec.instance !== INSTANCE &&
+            rec.pid === PROCESS_ID &&
             typeof rec.ts === "number" &&
             now - rec.ts < STALE_MS
           ) {
@@ -52,7 +58,7 @@ export default {
             return false
           }
         }
-        kv.set(OWNER_KEY, { instance: INSTANCE, ts: now })
+        kv.set(OWNER_KEY, { instance: INSTANCE, pid: PROCESS_ID, ts: now })
         return true
       } catch (err) {
         diag("acquireTitleLock falhou:", String(err))
@@ -111,8 +117,17 @@ export default {
         return
       }
       diag("notificando decisão:", key, "| windowId=", windowId || "(vazio)", "| ativo=", out || "(sem extensão)")
+      const title = "opencode · precisa de você"
       try {
-        Bun.spawn([NOTIFY_SCRIPT, "opencode · precisa de você", body, "normal", windowId], {
+        attention?.notify({
+          title,
+          message: body,
+        }).catch(() => {})
+      } catch (err) {
+        diag("attention.notify falhou:", String(err))
+      }
+      try {
+        Bun.spawn([NOTIFY_SCRIPT, title, body, "normal", windowId], {
           stdout: "ignore",
           stderr: "ignore",
         })

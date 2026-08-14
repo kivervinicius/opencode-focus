@@ -85,8 +85,12 @@ clique não foca.
 | Retry | `⠋ <título>` | `retry` (low) |
 
 Regras:
+- **Decisão pendente** usa `api.attention.notify()` do TUI (alerta dentro do próprio terminal) **e** tenta
+  `notify-send` quando disponível — funciona mesmo sem libnotify/notify-send instalado (ex.: sem sessão gráfica).
 - **Foco suprime**: com a extensão GNOME ativa, se o terminal já estiver com foco nenhuma notificação é enviada.
 - **Dedupe**: conclusão 1x por sessão; erros 1x por mensagem.
+- **Janelas independentes**: cada processo opencode tem o próprio título; abrir o opencode em outro projeto
+  ao mesmo tempo (ex.: um workspace de VPN + este) não bloqueia nem exige "ativar/desativar" o plugin.
 - **Atenção do TUI**: o plugin mantém o toggle `terminal.title.toggle` desligado (ele assumine o título).
   Se quiser som dentro do TUI, habilite `tui.attention` em `~/.config/opencode/tui.json`:
 
@@ -103,6 +107,13 @@ Log de depuração (foco/supressão/falhas de spawn):
 
 ```bash
 tail -f ~/.local/share/opencode/log/opencode-focus.log
+```
+
+Se a notificação não aparecer, o log explica o motivo (ex.: `notify-send ... ausentes`). Para notificações
+de sistema reais (erros, conclusão, retry via server), instale `libnotify-bin`:
+
+```bash
+sudo apt install libnotify-bin
 ```
 
 ## Para testar a decisão pendente

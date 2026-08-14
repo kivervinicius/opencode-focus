@@ -185,10 +185,15 @@ janela em paralelo (spinner a cada 120ms) e davam duplo toggle em `terminal.titl
 é lixo visual no fundo do TUI (sequência OSC `ESC]0;…` intercalada com o repaint). O `src/tui.ts` se
 protege com um lock via KV compartilhada do TUI:
 
-- Chave: `opencode_focus_title_owner` (valor `{ instance, ts }`); a chave `plugin_enabled` é reservada
-  pelo runtime (`KV_KEY` em `plugin/tui/runtime.ts`) — nunca use.
-- `acquireTitleLock()`: se existe um owner de outra instância com `ts` recente (< 5s), a instância
-  retorna cedo (sem toggle, sem título, sem notificações, sem listeners).
+- Chave: `opencode_focus_title_owner` (valor `{ instance, pid, ts }`); a chave `plugin_enabled` é
+  reservada pelo runtime (`KV_KEY` em `plugin/tui/runtime.ts`) — nunca use.
+- O lock é **escopado por processo** (`pid`): janelas abertas em processos diferentes (ex.: opencode
+  rodando em outro projeto ao mesmo tempo) nunca se bloqueiam e cada janela tem o próprio título.
+  Apenas cópias duplicadas do plugin dentro do **mesmo** processo disputam o lock (a primeira
+  carregada vence; as demais retornam cedo).
+- `acquireTitleLock()`: se existe um owner de outra instância **do mesmo processo** com `ts` recente
+  (< 5s), a instância retorna cedo (sem toggle, sem título, sem listeners). Registros antigos (de
+  versões anteriores, sem `pid`) não bloqueiam — a nova instância toma posse.
 - Heartbeat: a instância dona renova o `ts` a cada 2s (instâncias mortas/crash são substituídas após o
   tempo de stale).
 - `lifecycle.onDispose`: se ainda é o owner, limpa a chave.
@@ -340,10 +345,15 @@ opencode-focus.sh status           # sai 0 se a interface D-Bus existe
 opencode-notify.sh [summary] [body] [urgency] [winid]
 ```
 
-- chama `notify-send -a opencode -u <urgency> --wait --action="focus=Focar terminal"`;
+- tenta `notify-send -a opencode -u <urgency> --wait --action="focus=Focar terminal"`;
 - **`--wait`** é obrigatório para a ação funcionar depois do click;
 - `timeout 60` para não deixar processos zumbis;
-- se a ação devolvida for `focus`, chama `opencode-focus.sh activate "$winid"`.
+- se a ação devolvida for `focus`, chama `opencode-focus.sh activate "$winid"`;
+- **resiliência**: se `notify-send` não estiver instalado, cai para uma chamada D-Bus direta
+  a `org.freedesktop.Notifications` (`gdbus`/`dbus-send`) quando existir; se não houver canal algum,
+  registra o motivo no `opencode-focus.log` (nunca falha silenciosamente). O plugin TUI ainda assim
+  avisa "precisa de você" via `api.attention.notify()` (dentro do terminal, sem depender de `notify-send`),
+  então a decisão pendente sempre gera alerta mesmo em ambientes headless sem libnotify.
 
 ---
 
