@@ -7,12 +7,12 @@ Plugins para o [opencode](https://opencode.ai) que tornam o terminal mais observ
 - **Notificações minimalistas** (plugin server): notifica apenas quando vale a pena —
   erro (`critical`), decisão pendente ("precisa de você"), conclusão da sessão (1x, com dedupe) e retry (`low`).
   Nada de spam de progresso por mensagem/passo.
-- **Clique‐para‐focar** (extensão GNOME opcional): cada notificação tem a ação **"Focar terminal"** e, se o
-  terminal estiver com foco, as notificações são suprimidas.
+- **Suporte a Zellij**: renomeia a aba do Zellij automaticamente com o título de estado (`⠋`, `◉`, `✓`, `✗`) e restaura o nome ao sair.
 
 ## Funciona em
 
 - Linux (session gráfica com `notify-send`, GNOME para o recurso de foco)
+- Zellij terminal multiplexer (`zellij action rename-tab` automático)
 - opencode >= 1.18
 - A extensão GNOME exige Wayland (mais seguro) ou X11, GNOME Shell 45–49
 

@@ -30,27 +30,39 @@ const errorMessages = new Set<string>()
 
 let windowId = ""
 
-/** true se o terminal deste opencode está com foco agora (requer extensão GNOME). */
-function terminalIsFocused(): boolean {
+/** true se o terminal (e aba do Zellij, se aplicável) deste opencode está com foco agora. */
+function terminalIsFocused(currentTitle?: string): boolean {
   try {
     const result = Bun.spawnSync([FOCUS_SCRIPT, "get-active"], {
       stdout: "pipe",
       stderr: "ignore",
     })
     const out = String(result.stdout ?? "").trim()
-    return out !== "" && out === windowId
+    const windowFocused = out !== "" && out === windowId
+    if (!windowFocused) return false
+
+    if (currentTitle) {
+      const zellijCheck = Bun.spawnSync([FOCUS_SCRIPT, "is-zellij-tab-focused", currentTitle], {
+        stdout: "ignore",
+        stderr: "ignore",
+      })
+      if ((zellijCheck as { exitCode?: number; status?: number }).exitCode !== 0 && (zellijCheck as { status?: number }).status !== 0) {
+        return false
+      }
+    }
+    return true
   } catch {
     return false
   }
 }
 
-function notify(summary: string, body: string, urgency: "low" | "normal" | "critical" = "normal") {
-  if (terminalIsFocused()) {
+function notify(summary: string, body: string, urgency: "low" | "normal" | "critical" = "normal", sessionTitleText?: string) {
+  if (terminalIsFocused(sessionTitleText)) {
     diag("terminal focado, notificação suprimida:", summary)
     return
   }
   try {
-    Bun.spawn([NOTIFY_SCRIPT, summary, body, urgency, windowId], {
+    Bun.spawn([NOTIFY_SCRIPT, summary, body, urgency, windowId, sessionTitleText ?? ""], {
       stdout: "ignore",
       stderr: "ignore",
     })
@@ -131,7 +143,8 @@ const server: Plugin = async ({ client }) => {
           const key = `complete:${sessionID}`
           if (notified.has(key)) break
           notified.add(key)
-          notify("opencode · tarefa concluída", await bodyFor(client, sessionID))
+          const title = await sessionTitle(client, sessionID)
+          notify("opencode · tarefa concluída", await bodyFor(client, sessionID), "normal", title)
           break
         }
         case "message.updated": {
@@ -140,20 +153,24 @@ const server: Plugin = async ({ client }) => {
           const key = `${info.sessionID}:${info.id}`
           if (errorMessages.has(key)) break
           errorMessages.add(key)
-          notify("opencode · erro", `${await bodyFor(client, info.sessionID)}\n${short(errorMessage(info.error), 300)}`, "critical")
+          const title = await sessionTitle(client, info.sessionID)
+          notify("opencode · erro", `${await bodyFor(client, info.sessionID)}\n${short(errorMessage(info.error), 300)}`, "critical", title)
           break
         }
         case "session.error": {
           const sessionID = event.properties.sessionID ?? ""
-          notify("opencode · erro de sessão", `${await bodyFor(client, sessionID)}\n${short(errorMessage(event.properties.error), 300)}`, "critical")
+          const title = await sessionTitle(client, sessionID)
+          notify("opencode · erro de sessão", `${await bodyFor(client, sessionID)}\n${short(errorMessage(event.properties.error), 300)}`, "critical", title)
           break
         }
         case "session.status": {
           if (event.properties.status.type === "retry") {
+            const title = await sessionTitle(client, event.properties.sessionID)
             notify(
               "opencode · retry",
               `${await bodyFor(client, event.properties.sessionID)}\n${short(event.properties.status.message, 200)}`,
               "low",
+              title,
             )
           }
           break

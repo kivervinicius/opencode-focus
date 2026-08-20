@@ -7,6 +7,7 @@ summary="${1:-}"
 body="${2:-}"
 urgency="${3:-normal}"
 winid="${4:-}"
+tabtitle="${5:-}"
 
 DIAG_LOG="${HOME:-.}/.local/share/opencode/log/opencode-focus.log"
 
@@ -25,8 +26,8 @@ for cand in notify-send /usr/bin/notify-send /usr/local/bin/notify-send; do
     fi
     case "$out" in
       focus)
-        if [ -n "$winid" ]; then
-          "$DIR/opencode-focus.sh" activate "$winid" >/dev/null 2>&1
+        if [ -n "$winid" ] || [ -n "$tabtitle" ]; then
+          "$DIR/opencode-focus.sh" activate "$winid" "$tabtitle" >/dev/null 2>&1
         fi
         ;;
     esac

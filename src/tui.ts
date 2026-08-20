@@ -85,6 +85,13 @@ export default {
     let windowId = ""
     const notifiedDecisions = new Set<string>()
 
+    const isZellij = Boolean(
+      typeof process !== "undefined" &&
+        process.env &&
+        (process.env.ZELLIJ || process.env.ZELLIJ_SESSION_NAME),
+    )
+    let lastZellijTitle = ""
+
     function captureWindowId() {
       try {
         const result = Bun.spawnSync([FOCUS_SCRIPT, "get-active"], {
@@ -112,7 +119,22 @@ export default {
       } catch (err) {
         diag("get-active falhou:", String(err))
       }
-      if (out !== "" && out === windowId) {
+      let isFocused = out !== "" && out === windowId
+      if (isFocused && isZellij && lastZellijTitle) {
+        try {
+          const zCheck = Bun.spawnSync([FOCUS_SCRIPT, "is-zellij-tab-focused", lastZellijTitle], {
+            stdout: "ignore",
+            stderr: "ignore",
+          })
+          if (
+            (zCheck as { exitCode?: number; status?: number }).exitCode !== 0 &&
+            (zCheck as { status?: number }).status !== 0
+          ) {
+            isFocused = false
+          }
+        } catch {}
+      }
+      if (isFocused) {
         diag("terminal focado, notificação de decisão suprimida:", key)
         return
       }
@@ -127,7 +149,7 @@ export default {
         diag("attention.notify falhou:", String(err))
       }
       try {
-        Bun.spawn([NOTIFY_SCRIPT, title, body, "normal", windowId], {
+        Bun.spawn([NOTIFY_SCRIPT, title, body, "normal", windowId, lastZellijTitle], {
           stdout: "ignore",
           stderr: "ignore",
         })
@@ -193,7 +215,19 @@ export default {
         const todo = state.session.todo(sessionID).find((item) => item.status === "in_progress")
         if (todo) parts.push(`▶ ${truncate(todo.content, 40)}`)
       }
-      renderer.setTerminalTitle(truncate(parts.join(" · "), 90))
+      const titleText = truncate(parts.join(" · "), 90)
+      renderer.setTerminalTitle(titleText)
+      if (isZellij && titleText !== lastZellijTitle) {
+        lastZellijTitle = titleText
+        try {
+          Bun.spawn([FOCUS_SCRIPT, "rename-zellij-tab", titleText], {
+            stdout: "ignore",
+            stderr: "ignore",
+          })
+        } catch (err) {
+          diag("zellij rename-tab spawn falhou:", String(err))
+        }
+      }
     }
 
     function startSpinner() {
@@ -250,6 +284,14 @@ export default {
     lifecycle.onDispose(() => {
       stopSpinner()
       renderer.setTerminalTitle("")
+      if (isZellij) {
+        try {
+          Bun.spawnSync([FOCUS_SCRIPT, "undo-rename-zellij-tab"], {
+            stdout: "ignore",
+            stderr: "ignore",
+          })
+        } catch {}
+      }
       if (heartbeat) clearInterval(heartbeat)
       try {
         const owner = kv.get(OWNER_KEY, undefined)

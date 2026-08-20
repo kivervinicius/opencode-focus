@@ -330,9 +330,12 @@ O plugin server e o TUI chamam esses métodos via `opencode-focus.sh` (`gdbus ca
 ### `opencode-focus.sh`
 
 ```bash
-opencode-focus.sh get-active       # imprime o ID da janela ativa (vazio se extensão ausente)
-opencode-focus.sh activate <id>    # foca a janela de id
-opencode-focus.sh status           # sai 0 se a interface D-Bus existe
+opencode-focus.sh get-active               # imprime o ID da janela ativa (vazio se extensão ausente)
+opencode-focus.sh activate <id>            # foca a janela de id
+opencode-focus.sh status                   # sai 0 se a interface D-Bus existe
+opencode-focus.sh rename-zellij-tab <nome>  # renomeia a aba do Zellij se executado dentro dele
+opencode-focus.sh undo-rename-zellij-tab   # restaura o nome original da aba no Zellij
+opencode-focus.sh is-zellij                # sai 0 se ZELLIJ/ZELLIJ_SESSION_NAME estiver presente
 ```
 
 - usa `gdbus call --session --dest org.opencode.Focus ...`;
