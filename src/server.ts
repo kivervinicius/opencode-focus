@@ -29,9 +29,10 @@ const notified = new Set<string>()
 const errorMessages = new Set<string>()
 
 let windowId = ""
+let zellijTabId = ""
 
 /** true se o terminal (e aba do Zellij, se aplicável) deste opencode está com foco agora. */
-function terminalIsFocused(currentTitle?: string): boolean {
+function terminalIsFocused(): boolean {
   try {
     const result = Bun.spawnSync([FOCUS_SCRIPT, "get-active"], {
       stdout: "pipe",
@@ -41,12 +42,15 @@ function terminalIsFocused(currentTitle?: string): boolean {
     const windowFocused = out !== "" && out === windowId
     if (!windowFocused) return false
 
-    if (currentTitle) {
-      const zellijCheck = Bun.spawnSync([FOCUS_SCRIPT, "is-zellij-tab-focused", currentTitle], {
+    if (zellijTabId) {
+      const zellijCheck = Bun.spawnSync([FOCUS_SCRIPT, "is-zellij-tab-focused", zellijTabId], {
         stdout: "ignore",
         stderr: "ignore",
       })
-      if ((zellijCheck as { exitCode?: number; status?: number }).exitCode !== 0 && (zellijCheck as { status?: number }).status !== 0) {
+      if (
+        (zellijCheck as { exitCode?: number; status?: number }).exitCode !== 0 &&
+        (zellijCheck as { status?: number }).status !== 0
+      ) {
         return false
       }
     }
@@ -56,13 +60,13 @@ function terminalIsFocused(currentTitle?: string): boolean {
   }
 }
 
-function notify(summary: string, body: string, urgency: "low" | "normal" | "critical" = "normal", sessionTitleText?: string) {
-  if (terminalIsFocused(sessionTitleText)) {
+function notify(summary: string, body: string, urgency: "low" | "normal" | "critical" = "normal") {
+  if (terminalIsFocused()) {
     diag("terminal focado, notificação suprimida:", summary)
     return
   }
   try {
-    Bun.spawn([NOTIFY_SCRIPT, summary, body, urgency, windowId, sessionTitleText ?? ""], {
+    Bun.spawn([NOTIFY_SCRIPT, summary, body, urgency, windowId, zellijTabId], {
       stdout: "ignore",
       stderr: "ignore",
     })
@@ -111,6 +115,17 @@ function captureWindowId() {
   } catch {}
 }
 
+function captureZellijTabId() {
+  try {
+    const result = Bun.spawnSync([FOCUS_SCRIPT, "get-zellij-tab-id"], {
+      stdout: "pipe",
+      stderr: "ignore",
+    })
+    const out = String(result.stdout ?? "").trim()
+    if (out) zellijTabId = out
+  } catch {}
+}
+
 function extensionStatus() {
   try {
     const result = Bun.spawnSync([FOCUS_SCRIPT, "status"], {
@@ -125,6 +140,7 @@ function extensionStatus() {
 
 const server: Plugin = async ({ client }) => {
   captureWindowId()
+  captureZellijTabId()
   if (!extensionStatus()) {
     diag("extensão GNOME opencode-focus ausente — supressão por foco desativada. Instale com: npx opencode-focus setup")
   }
@@ -143,8 +159,7 @@ const server: Plugin = async ({ client }) => {
           const key = `complete:${sessionID}`
           if (notified.has(key)) break
           notified.add(key)
-          const title = await sessionTitle(client, sessionID)
-          notify("opencode · tarefa concluída", await bodyFor(client, sessionID), "normal", title)
+          notify("opencode · tarefa concluída", await bodyFor(client, sessionID))
           break
         }
         case "message.updated": {
@@ -153,24 +168,20 @@ const server: Plugin = async ({ client }) => {
           const key = `${info.sessionID}:${info.id}`
           if (errorMessages.has(key)) break
           errorMessages.add(key)
-          const title = await sessionTitle(client, info.sessionID)
-          notify("opencode · erro", `${await bodyFor(client, info.sessionID)}\n${short(errorMessage(info.error), 300)}`, "critical", title)
+          notify("opencode · erro", `${await bodyFor(client, info.sessionID)}\n${short(errorMessage(info.error), 300)}`, "critical")
           break
         }
         case "session.error": {
           const sessionID = event.properties.sessionID ?? ""
-          const title = await sessionTitle(client, sessionID)
-          notify("opencode · erro de sessão", `${await bodyFor(client, sessionID)}\n${short(errorMessage(event.properties.error), 300)}`, "critical", title)
+          notify("opencode · erro de sessão", `${await bodyFor(client, sessionID)}\n${short(errorMessage(event.properties.error), 300)}`, "critical")
           break
         }
         case "session.status": {
           if (event.properties.status.type === "retry") {
-            const title = await sessionTitle(client, event.properties.sessionID)
             notify(
               "opencode · retry",
               `${await bodyFor(client, event.properties.sessionID)}\n${short(event.properties.status.message, 200)}`,
               "low",
-              title,
             )
           }
           break

@@ -1,19 +1,20 @@
-# Especificação Ativa: Notificação e Título por Aba no Zellij
+# Especificação Ativa: Notificação e Título por Aba no Zellij (Sem Piscar)
 
 ## Status
-Concluído e Aprimorado
+Concluído e Validado
 
-## Motivação
-No multiplexer Zellij:
-1. Sequências ANSI/OSC padrão de alteração de título (`OSC 0/2`) não alteram o nome da aba no bar do Zellij.
-2. A supressão por foco via janela do SO (GNOME Terminal) marcaria opencode como "focado" mesmo se o usuário estivesse interagindo em outra aba dentro do Zellij.
+## Problema Identificado
+1. **Flicker e Troca de Telas**: O spinner de 120ms estava chamando `zellij action rename-tab` a cada frame (8x/segundo) com um caractere diferente do spinner (`⠋`, `⠙`, `⠹`...), sem especificar o ID da aba (`--tab-id`).
+2. Isso fazia com que o Zellij renomeasse qualquer aba que estivesse com foco no momento da chamada CLI, causando redraw contínuo e piscamento na barra de abas.
 
-## Requisitos Implementados
-1. **Renomeação Dinâmica da Aba no Zellij**:
-   - `rename-zellij-tab <name>`: executa `zellij action rename-tab "$name"`.
-   - `undo-rename-zellij-tab`: executa `zellij action undo-rename-tab` ao sair.
-2. **Detecção de Foco em Aba do Zellij**:
-   - `is-zellij-tab-focused <name>`: verifica se a aba ativa no Zellij é a aba do opencode.
-   - Se o usuário estiver em outra aba do Zellij, o opencode reconhece que o usuário não está olhando para ele e **envia a notificação desktop**.
-3. **Clique para Focar Aba no Zellij**:
-   - Ao clicar em "Focar terminal" na notificação desktop, o script ativa a janela do SO e executa `zellij action go-to-tab-name "<title>"`, alternando direto para a aba do opencode dentro do Zellij.
+## Solução Implementada
+1. **Captura Estável do Tab ID**:
+   - `get-zellij-tab-id`: captura o ID da aba do opencode na inicialização (`current-tab-info -> id`).
+   - Todos os comandos passam `--tab-id "$tabId"`, garantindo que **apenas a aba do opencode seja alterada**, sem nunca afetar a aba onde o usuário está trabalhando.
+2. **Ícone Estático na Aba do Zellij**:
+   - O terminal continua com a animação suave do spinner via OSC padrão, mas o Zellij usa prefixo estático (`⠋`, `◉`, `✓`, `✗`).
+   - O `rename-tab` no Zellij só é disparado quando o **estado real ou o texto mudam** (ao iniciar execução, mudar passo todo, aguardar permissão, concluir ou dar erro), em vez de 8 vezes por segundo.
+3. **Detecção de Foco por Tab ID**:
+   - `is-zellij-tab-focused <tabId>` compara o ID da aba ativa com o `zellijTabId`.
+4. **Clique para Focar por Tab ID**:
+   - `zellij action go-to-tab-by-id "$tabId"` troca diretamente para a aba correta ao clicar em "Focar terminal".
